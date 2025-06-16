@@ -38,16 +38,32 @@ class NetDRTCipher:
         self.rsa_key = key
         return key
     
+    @staticmethod
+    def split_data(data, chunk_size):
+        return [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+    
     def encrypt(self, plaintext):
         if self.rsa_key is None:
             raise ValueError("Must generate RSA key first")
         cipher = PKCS1_OAEP.new(self.rsa_key.publickey(), hashAlgo=SHA256)
-        ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+
+        plaintext_segments = self.split_data(plaintext, 190)
+        if isinstance(plaintext, str):
+            ciphertext = b''.join([cipher.encrypt(seg.encode('utf-8')) for seg in plaintext_segments])
+        elif isinstance(plaintext, bytes):
+            ciphertext = b''.join([cipher.encrypt(seg) for seg in plaintext_segments])
+        else:
+            raise ValueError()
         return ciphertext
     
-    def decrypt(self, ciphertext):
+    def decrypt(self, ciphertext, decode=False):
         if self.rsa_key is None:
             raise ValueError("Must generate RSA key first")
         cipher = PKCS1_OAEP.new(self.rsa_key, hashAlgo=SHA256)
-        plaintext = cipher.decrypt(ciphertext).decode('utf-8')
-        return plaintext
+        assert isinstance(ciphertext, bytes)
+        ciphertext_segments = self.split_data(ciphertext, 256)
+        plaintext = b''.join([cipher.decrypt(seg) for seg in ciphertext_segments])
+        if decode:
+            return plaintext.decode('utf-8')
+        else:
+            return plaintext

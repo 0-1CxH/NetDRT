@@ -17,9 +17,9 @@ def test_keygen():
     print(ret3, ret4, ret3 == ret4)
 
 
-    cp1 = c1.encrypt("hello1")
+    cp1 = c1.encrypt(b"hello1")
     print(c2.decrypt(cp1))
-    cp2 = c2.encrypt("hello2")
+    cp2 = c2.encrypt(b"hello2")
     print(c1.decrypt(cp2))
 
     
@@ -27,6 +27,10 @@ def test_keygen():
     print(c4.decrypt(cp3))
     cp4 = c4.encrypt("hello4")
     print(c3.decrypt(cp4))
+
+    long_example = c3.encrypt(b'123' * 190)
+    print(c3.decrypt(long_example))
+
 
 
     
