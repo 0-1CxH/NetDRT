@@ -1,0 +1,23 @@
+# common configs
+log_level: DEBUG
+log_to_file: False
+salt: ndrt_testing
+passkey: dev
+# not recommened to write passkey in config even supported
+chunk_size: 4096
+chunk_size_variance_percentage: 0.95
+
+server_ip: 127.0.0.1
+server_port: 23354
+
+# client configs
+sending_thread_num: 24
+append_random_bytes: 256
+
+# server configs
+max_sessions: 1
+overwrite_if_exists: True
+session_expiration: 60
+file_reception_dir: ./ndrt_received_files
+server_async_thread_num: 16
+respond_random_bytes: 256
