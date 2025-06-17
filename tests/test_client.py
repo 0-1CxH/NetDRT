@@ -1,7 +1,7 @@
 from netdrt.client import NetDRTClient
 
 def test_client():
-    client = NetDRTClient({})
+    client = NetDRTClient({'passkey': '1',})
     client.send_file("tests/sample.txt")
 
 

@@ -60,13 +60,18 @@ class NetDRTServer:
             self.logger.error(f"Authentication failed: {e}")
             return False
 
-    def create_session(self):
+    def create_session(self, chunks_count):
         # Create a new session with a unique ID and processing port
         session_id = str(uuid.uuid4())
         if len(self.active_sessions) >= self.max_sessions:
             return None
         else:
-            self.active_sessions[session_id] = {'chunks': [], 'file_info': None}
+            self.active_sessions[session_id] = {
+                'updated_time': time.time(),
+                'chunks': [],
+                'chunks_count': int(chunks_count),
+                'file_info': None
+            }
             return session_id
 
     def handle_chunk(self, session_id, encrypted_chunk):
@@ -75,10 +80,16 @@ class NetDRTServer:
             chunk = self.cipher.decrypt(base64.b64decode(encrypted_chunk))
             # Store the chunk
             session = self.active_sessions.get(session_id)
+            self.logger.debug(f"{session=}")
             if session:
                 session['chunks'].append(chunk)
-                self.logger.info(f"Chunk received for session {session_id}")
-                return True
+                session['updated_time'] = time.time()
+                received_chunk_count = len(session['chunks'])
+                self.logger.info(f"Session {session_id} received {received_chunk_count}/{session['chunks_count']} chunks.")
+                if received_chunk_count == session['chunks_count']:
+                    return self.finalize_file(session_id)
+                else:
+                    return True
             else:
                 self.logger.error(f"Invalid session {session_id}")
                 return False
@@ -87,6 +98,7 @@ class NetDRTServer:
             return False
 
     def finalize_file(self, session_id):
+        self.logger.info(f"Session {session_id} received all chunks, now reconstructing the file.")
         session = self.active_sessions.get(session_id)
         if not session:
             return False
@@ -135,12 +147,13 @@ def create_flask_server(server_instance):
 
     @app.route('/', methods=['GET'])
     def get_session():
-        sign = request.form.get('sign')
+        sign = request.form.get('g')
+        chunks_count = request.form.get('n')
         if not sign or not server_instance.authenticate_sign(sign):
             return jsonify({"error": "Authentication failed"}), 403
         
         try:
-            session_id = server_instance.create_session()
+            session_id = server_instance.create_session(chunks_count)
             if session_id is not None:
                 return jsonify({
                     "session_id": session_id, 
@@ -152,10 +165,8 @@ def create_flask_server(server_instance):
 
     @app.route('/', methods=['POST'])
     def receive_chunk():
-        session_id = request.form.get('session_id')
-        encrypted_chunk = request.form.get('packet')
-
-        print(f"{session_id=}, {len(encrypted_chunk)=}")
+        session_id = request.form.get('s')
+        encrypted_chunk = request.form.get('c')
 
         if not session_id or not encrypted_chunk:
             return jsonify({"error": "Missing session_id or packet"}), 400

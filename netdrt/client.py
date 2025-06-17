@@ -44,31 +44,36 @@ class NetDRTClient:
 
     def _send(self, session_id, packet):
         url = f"http://{self.server_ip}:{self.server_port}"
-        response = requests.post(url, data={'packet': packet, 'session_id': session_id})
-        self.logger.debug(response)
+        response = requests.post(url, data={
+            'c': packet,
+            's': session_id,
+        })
         if response.status_code == 200:
             self.logger.info("Packet sent successfully.")
         else:
-            self.logger.error(f"Failed to send packet. Status code: {response.status_code}")
+            self.logger.error(f"Failed to send packet. Status code: {response.status_code}. Message: {response.content.decode()}")
     
     def _sign_current_timestamp(self):
         enc_ts = self.cipher.encrypt(time.time().__str__())
         return base64.b64encode(enc_ts).decode('ascii')
     
     
-    def _get_session_id(self):
+    def _get_session_id(self, packed_chunks_count):
         url = f"http://{self.server_ip}:{self.server_port}"
         
-        response = requests.get(url, data={'sign': self._sign_current_timestamp()})
+        response = requests.get(url, data={
+            'g': self._sign_current_timestamp(),
+            'n': packed_chunks_count,
+        })
         if response.status_code == 200:
             session_id = response.json().get('session_id')
             if session_id:
                 self.logger.info(f"Session ID obtained: {session_id}")
             else:
-                self.logger.error("Session ID/Processing Port not found in response.")
+                self.logger.error("Session ID not found in response.")
             return session_id
         else:
-            self.logger.error(f"Failed to get session ID/Processing Port. Status code: {response.status_code}")
+            self.logger.error(f"Failed to get session ID. Status code: {response.status_code}. Message: {response.content.decode()}")
     
 
 
@@ -98,7 +103,9 @@ class NetDRTClient:
                 base64.b64encode(self.cipher.encrypt(_)).decode('ascii') for _ in packed_chunks
             ]
 
-            session_id = self._get_session_id()
+            packed_chunks_count = len(packed_chunks)
+
+            session_id = self._get_session_id(packed_chunks_count)
             
             def send_chunk(chunk):
                 try:
