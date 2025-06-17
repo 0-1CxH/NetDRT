@@ -34,7 +34,7 @@ class NetDRTClient:
 
         self.server_ip = client_configs.get('server_ip', '127.0.0.1')
         self.server_port = client_configs.get('server_port', '9651')
-        self.thread_num = client_configs.get('thread_num', 5)
+        self.thread_num = client_configs.get('sending_thread_num', 32)
 
         self.logger.info(f"NDRT Client Init Finish. Server: {self.server_ip}:{self.server_port}")
     
@@ -89,18 +89,19 @@ class NetDRTClient:
             packed_chunks = self.protocol.pack(
                 content, 
                 {
-                "file_path_on_sender": file_path,
+                "file_path_on_sender": os.path.abspath(file_path),
                 "file_name": file_name,
                 "file_size": file_size,
                 "file_hash": file_hash
                 }
             )
 
+            self.logger.debug("Starting Encoding the Chunks...")
             packed_chunks = [
                 base64.b64encode(self.cipher.encrypt(_)).decode('ascii') for _ in packed_chunks
             ]
-
             packed_chunks_count = len(packed_chunks)
+            self.logger.info(f"Finished Encoding the {packed_chunks_count} Chunks")
 
             session_id = self._get_session_id(packed_chunks_count)
             
@@ -113,7 +114,7 @@ class NetDRTClient:
                     except Exception as e:
                         self.logger.error(f"Error sending chunk: {e}, Remaining Retries: {retrying}")
                         retrying -= 1 
-
+            
             with ThreadPoolExecutor(max_workers=self.thread_num) as executor:
                 futures = {}
                 for idx, chunk in enumerate(packed_chunks):
@@ -125,8 +126,9 @@ class NetDRTClient:
                     idx = futures[fut]
                     try:
                         fut.result()
+                        self.logger.debug(f"Finish thread of chunk {idx}")
                     except Exception as e:
-                        self.logger.error(f"Chunk {idx} sending failed: {e}")
+                        self.logger.error(f"Thread of chunk {idx} failed: {e}")
 
 
 

@@ -1,0 +1,22 @@
+# common configs
+log_level: DEBUG
+log_to_file: False
+salt: NDRT#pr0duct10n%0-1CxH
+# not recommened to write passkey in config even supported
+chunk_size: 4096
+chunk_size_variance_percentage: 0.6
+
+server_ip: 127.0.0.1 # REPLACE IP HERE
+server_port: 23354
+
+# client configs
+sending_thread_num: 32
+append_random_bytes: 128
+
+# server configs
+max_sessions: 15
+overwrite_if_exists: False
+session_expiration: 1800
+file_reception_dir: ./ndrt_received_files
+server_async_thread_num: 8
+respond_random_bytes: 128

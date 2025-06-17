@@ -10,7 +10,7 @@ class NetDRTProtocol:
             config = {}
         self.chunk_size = config.get('chunk_size', 4 * 1024 * 1024) # 4M
         self.chunk_size_variance_percentage = config.get('chunk_size_variance_percentage', 0.1) # sample in +/- 10% range
-        assert 0.0 <= self.chunk_size_variance_percentage < 1.0
+        assert 0.0 <= self.chunk_size_variance_percentage <= 1.0
         self.append_random_bytes = config.get('append_random_bytes', 128) # append 0-128 bytes after real data
     
     def _chunking(self, data: ByteString):
