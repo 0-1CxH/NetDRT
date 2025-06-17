@@ -45,7 +45,7 @@ def main():
         # Handle interactive mode
         if args.interactive:
             while True:
-                file_path = input("Enter file path (or 'quit' to exit): ")
+                file_path = input("Enter file path (or 'quit' to exit): ").strip()
                 if file_path.lower() == 'quit':
                     break
                 timed_sending_file(client, file_path)
