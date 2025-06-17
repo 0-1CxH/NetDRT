@@ -3,8 +3,8 @@ import time
 import uuid
 import os
 import base64
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
+import datetime
 
 from .cipher import NetDRTCipher
 from .protocol import NetDRTProtocol
@@ -80,7 +80,7 @@ class NetDRTServer:
             chunk = self.cipher.decrypt(base64.b64decode(encrypted_chunk))
             # Store the chunk
             session = self.active_sessions.get(session_id)
-            self.logger.debug(f"{session=}")
+            
             if session:
                 session['chunks'].append(chunk)
                 session['updated_time'] = time.time()
@@ -104,38 +104,48 @@ class NetDRTServer:
             return False
 
         try:
-             # #DO NOT Unpack the chunk HERE, do after all are collected
-            # unpacked_chunk = self.protocol.unpack(chunk)
-            # self.logger.debug(f"{unpacked_chunk=}")
-            # print(unpacked_chunk)
-            # Update file info on first chunk
-                # if not session['file_info']:
-                #     session['file_info'] = unpacked_chunk['metadata']
-                
 
-            # Reconstruct file
-            file_info = session['file_info']
-            reconstructed_content = self.protocol.reconstruct(session['chunks'])
+            unpacked = self.protocol.unpack(session['chunks'])
+            # self.logger.debug(f"{unpacked_chunk=}")
+            # Update file info on first chunk
+            if not session['file_info']:
+                session['file_info'] = unpacked['metadata']
+            
+            reconstructed_content = unpacked['data']
 
             # Verify hash
             file_hash = hashlib.sha256(reconstructed_content).hexdigest()
-            if file_hash != file_info['file_hash']:
+            if file_hash != session['file_info']['file_hash']:
                 self.logger.error("File hash mismatch")
                 return False
 
             # Save file
             file_path = os.path.join(
                 self.file_reception_dir, 
-                file_info['file_name']
+                session['file_info']['file_name']
             )
+
+            # Check if the file already exists
+            if os.path.exists(file_path):
+                # Generate a new file name with a UUID to ensure uniqueness
+                base_name, extension = os.path.splitext(session['file_info']['file_name'])
+                new_file_name = f"{base_name}_{datetime.datetime.now().__str__().replace(" ", "-")}{extension}"
+                file_path = os.path.join(self.file_reception_dir, new_file_name)
+                self.logger.info(f"File already exists. Renaming to {new_file_name}.")
+
             with open(file_path, 'wb') as f:
                 f.write(reconstructed_content)
+            
+            # also verify file size too
+            file_size = os.path.getsize(file_path)
+            if file_size != session['file_info']['file_size']:
+                self.logger.warning(f"File size mismatch.")
 
-            self.logger.info(f"File {file_info['file_name']} received successfully")
+            self.logger.info(f"File {session['file_info']['file_name']} (size: {file_size/1024/1024}M, hash: {file_hash}) "
+                             f"saved to {file_path} (path on sender: {session['file_info']['file_path_on_sender']}) successfully.")
             
             # Clean up session
             del self.active_sessions[session_id]
-            del self.processing_ports[session_id]
 
             return True
         except Exception as e:
@@ -144,6 +154,7 @@ class NetDRTServer:
 
 def create_flask_server(server_instance):
     app = Flask(__name__)
+    app.config['MAX_CONTENT_LENGTH'] = 256 * 1024 * 1024
 
     @app.route('/', methods=['GET'])
     def get_session():
@@ -165,8 +176,8 @@ def create_flask_server(server_instance):
 
     @app.route('/', methods=['POST'])
     def receive_chunk():
-        session_id = request.form.get('s')
-        encrypted_chunk = request.form.get('c')
+        session_id = request.json.get('s')
+        encrypted_chunk = request.json.get('c')
 
         if not session_id or not encrypted_chunk:
             return jsonify({"error": "Missing session_id or packet"}), 400

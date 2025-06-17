@@ -4,14 +4,11 @@ from .log import setup_logger
 import os
 import hashlib
 import time
-import random
 from typing import Dict
 import requests
 import base64
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
-import uuid
+
 
 class NetDRTClient:
     def __init__(self, client_configs: Dict) -> None:
@@ -44,14 +41,14 @@ class NetDRTClient:
 
     def _send(self, session_id, packet):
         url = f"http://{self.server_ip}:{self.server_port}"
-        response = requests.post(url, data={
+        response = requests.post(url, json={
             'c': packet,
             's': session_id,
         })
         if response.status_code == 200:
-            self.logger.info("Packet sent successfully.")
+            return True
         else:
-            self.logger.error(f"Failed to send packet. Status code: {response.status_code}. Message: {response.content.decode()}")
+            raise RuntimeError(f"Failed to send packet. Status code: {response.status_code}. Message: {response.content.decode()}")
     
     def _sign_current_timestamp(self):
         enc_ts = self.cipher.encrypt(time.time().__str__())
@@ -108,10 +105,14 @@ class NetDRTClient:
             session_id = self._get_session_id(packed_chunks_count)
             
             def send_chunk(chunk):
-                try:
-                    self._send(session_id, chunk)
-                except Exception as e:
-                    self.logger.error(f"Error sending chunk: {e}")
+                retrying = 3
+                while retrying > 0:
+                    try:
+                        if self._send(session_id, chunk) is True:
+                            break
+                    except Exception as e:
+                        self.logger.error(f"Error sending chunk: {e}, Remaining Retries: {retrying}")
+                        retrying -= 1 
 
             with ThreadPoolExecutor(max_workers=self.thread_num) as executor:
                 futures = {}
