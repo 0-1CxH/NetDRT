@@ -1,4 +1,4 @@
-from netdrt.service import NetDRTClient
+from netdrt.client import NetDRTClient
 
 def test_client():
     client = NetDRTClient({})

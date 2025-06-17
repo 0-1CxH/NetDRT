@@ -42,28 +42,31 @@ class NetDRTClient:
         self.logger.info(f"NDRT Client Init Finish. Server: {self.server_ip}:{self.server_port}")
     
 
-    def _send_to_processing_port(self, session_id, processing_port, packet):
-        url = f"http://{self.server_ip}:{processing_port}/s={session_id}"
-        response = requests.post(url, data=packet)
+    def _send(self, session_id, packet):
+        url = f"http://{self.server_ip}:{self.server_port}"
+        response = requests.post(url, data={'packet': packet, 'session_id': session_id})
         self.logger.debug(response)
         if response.status_code == 200:
             self.logger.info("Packet sent successfully.")
         else:
             self.logger.error(f"Failed to send packet. Status code: {response.status_code}")
     
+    def _sign_current_timestamp(self):
+        enc_ts = self.cipher.encrypt(time.time().__str__())
+        return base64.b64encode(enc_ts).decode('ascii')
     
-    def _get_session_id_and_processing_port(self):
+    
+    def _get_session_id(self):
         url = f"http://{self.server_ip}:{self.server_port}"
         
-        response = requests.get(url)
+        response = requests.get(url, data={'sign': self._sign_current_timestamp()})
         if response.status_code == 200:
             session_id = response.json().get('session_id')
-            processing_port = response.json().get('processing_port')
             if session_id:
-                self.logger.info(f"Session ID obtained: {session_id}, Processing Port Obtained: {processing_port}")
+                self.logger.info(f"Session ID obtained: {session_id}")
             else:
                 self.logger.error("Session ID/Processing Port not found in response.")
-            return session_id, processing_port
+            return session_id
         else:
             self.logger.error(f"Failed to get session ID/Processing Port. Status code: {response.status_code}")
     
@@ -95,11 +98,11 @@ class NetDRTClient:
                 base64.b64encode(self.cipher.encrypt(_)).decode('ascii') for _ in packed_chunks
             ]
 
-            session_id, processing_port = self._get_session_id_and_processing_port()
+            session_id = self._get_session_id()
             
             def send_chunk(chunk):
                 try:
-                    self._send_to_processing_port(session_id, processing_port, chunk)
+                    self._send(session_id, chunk)
                 except Exception as e:
                     self.logger.error(f"Error sending chunk: {e}")
 

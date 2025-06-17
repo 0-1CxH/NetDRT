@@ -6,6 +6,8 @@ import json
 
 class NetDRTProtocol:
     def __init__(self, config: Optional[Dict] = None) -> None:
+        if config is None:
+            config = {}
         self.chunk_size = config.get('chunk_size', 8 * 1024 * 1024) # 8MB
         self.chunk_size_variance_percentage = config.get('chunk_size_variance_percentage', 0.1) # sample in +/- 10% range
         assert 0.0 <= self.chunk_size_variance_percentage < 1.0
