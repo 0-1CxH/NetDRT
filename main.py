@@ -6,21 +6,13 @@ from netdrt import NetDRTClient, NetDRTServer
 
 def read_config_file(yaml_path):
     """Read and parse the YAML configuration file."""
-    try:
-        with open(yaml_path, 'r') as f:
-            return yaml.safe_load(f)
-    except Exception as e:
-        print(f"Error reading config file: {e}")
-        return None
+    with open(yaml_path, 'r') as f:
+        return yaml.safe_load(f)
+    
 
 def prepare_client(configs):
     """Initialize and return a NetDRT client."""
-    try:
-        client = NetDRTClient(configs)
-        return client
-    except Exception as e:
-        print(f"Error initializing client: {e}")
-        return None
+    return NetDRTClient(configs)
 
 def prepare_server(configs):
     """Initialize and start the NetDRT server."""

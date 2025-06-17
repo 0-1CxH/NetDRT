@@ -3,7 +3,7 @@ log_level: DEBUG
 log_to_file: False
 salt: NDRT#pr0duct10n%0-1CxH
 # not recommened to write passkey in config even supported
-chunk_size: 4096
+chunk_size: 2097152
 chunk_size_variance_percentage: 0.6
 
 server_ip: 127.0.0.1 # REPLACE IP HERE
